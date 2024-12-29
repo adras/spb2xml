@@ -55,19 +55,6 @@ namespace spb2xml
                         if (element != null)
                         {
                             string entryName = element.Name;
-                            //if (element is SetDef setDef && setDef.Parent != null)
-                            //{
-                            //    entryName = $"{setDef.Parent.Name}.{setDef.Name}";
-                            //}
-                            ////if (element is PropertyDef propDef && propDef.SymbolContext != null)
-                            ////{
-                            ////    entryName = $"{propDef.SymbolContext.Name}.{propDef.Name}";
-                            ////}
-                            //if (element.SymbolContext != null)
-                            //{
-                            //    entryName = $"{element.SymbolContext.Name}.{element.Name}";
-                            //}
-
                             metadata[entryName] = element;
                         }
                     }
@@ -158,7 +145,7 @@ namespace spb2xml
                 case "TEXT":
                 case "MLTEXT":
                     {
-                        byte[] bytes = Encoding.UTF8.GetBytes(value);
+                        byte[] bytes = TextDecode.Encode(value);
                         writer.Write(bytes.Length);
                         writer.Write(bytes);
                     }
