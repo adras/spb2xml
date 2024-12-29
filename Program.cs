@@ -112,7 +112,7 @@ namespace spb2xml
                 //
                 SymbolBank sb = SymbolBank.Instance;
                 DirectoryInfo cdi = new DirectoryInfo(simPropSearchPath);
-                foreach (FileInfo fi in cdi.GetFiles("*.xml"))
+                foreach (FileInfo fi in cdi.GetFiles("*.xml", SearchOption.AllDirectories))
                 {
                     if (verbose)
                     {
