@@ -15,6 +15,8 @@ namespace spb2xml
         private XmlDocument doc;
         private ModelBank models;
         private Dictionary<Guid, DefinitionElement> metadata;
+        private int[] headers; // Add a field to store header values
+        private List<int> unknownFlags; // Add a field to store unknown flag values
 
         private static UTF8Encoding encoder = new UTF8Encoding();
         private const string DEC_FORMAT = "0.000";
@@ -25,6 +27,8 @@ namespace spb2xml
             FileStream fs = new FileStream(spbFileUrl, FileMode.Open);
             reader = new BinaryReader(fs);
             metadata = new Dictionary<Guid, DefinitionElement>();
+            headers = new int[12]; // Initialize the headers array
+            unknownFlags = new List<int>(); // Initialize the unknown flags list
         }
 
         public void SetModels(ModelBank mBank)
@@ -60,6 +64,7 @@ namespace spb2xml
             for (int i = 0; i < 12; i++)
             {
                 int v = reader.ReadInt32();
+                headers[i] = v; // Store the header value
                 if (i == 6) ntags = v;
             }
 
@@ -81,7 +86,8 @@ namespace spb2xml
 
                 tags[i] = de;
                 metadata[g] = de; // Preserve metadata
-                reader.ReadInt32();
+                int unknownFlag = reader.ReadInt32(); // Read and store the unknown flag
+                unknownFlags.Add(unknownFlag);
             }
         }
 
@@ -308,7 +314,6 @@ namespace spb2xml
                     pd.SymbolContext != current)
                     propName = pd.SymbolContext.Name + "." + propName;
 
-
                 XmlNode pNode = doc.CreateElement("", propName.TrimEnd(), "");
                 XmlNode tNode = doc.CreateTextNode(text);
                 pNode.AppendChild(tNode);
@@ -321,20 +326,19 @@ namespace spb2xml
             using (FileStream fs = new FileStream(metadataFileUrl, FileMode.Create))
             using (StreamWriter writer = new StreamWriter(fs))
             {
-                foreach (KeyValuePair<Guid, DefinitionElement> entry in metadata)
+                foreach (var entry in metadata)
                 {
                     string metadataEntry = entry.Value.Name;
-                    //if (entry.Value.SymbolContext != null)
-                    //{
-                    //    metadataEntry = $"{entry.Value.SymbolContext.Name}.{entry.Value.Name}";
-                    //}
-
-                    //if (entry.Value is SetDef setDef && setDef.Parent != null)
-                    //{
-                    //    metadataEntry = $"{setDef.Parent.Name}.{setDef.Name}";
-                    //}
+                    if (entry.Value is SetDef setDef && setDef.Parent != null)
+                    {
+                        metadataEntry = $"{setDef.Parent.Name}.{setDef.Name}";
+                    }
                     writer.WriteLine($"{entry.Key}:{metadataEntry}");
                 }
+                // Save headers
+                writer.WriteLine("Headers:" + string.Join(",", headers));
+                // Save unknown flags
+                writer.WriteLine("UnknownFlags:" + string.Join(",", unknownFlags));
             }
         }
     }

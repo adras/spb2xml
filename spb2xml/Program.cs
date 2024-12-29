@@ -24,9 +24,7 @@ namespace spb2xml
 
         static void Main(string[] args)
         {
-            //_ = SetupPropertyCache(@".\", false);
-            //Encoder encoder = new Encoder("Tour.xml", "Tour.xml.meta");
-            //encoder.Encode("test");
+
 
 
             string simPropSearchPath = null;
@@ -166,6 +164,9 @@ namespace spb2xml
                     }
                 }
             }
+
+            Encoder encoder = new Encoder("Tour.xml", "Tour.xml.meta");
+            encoder.Encode("test.spb");
         }
 
         private static string SetupPropertyCache(string simPropSearchPath, bool verbose)

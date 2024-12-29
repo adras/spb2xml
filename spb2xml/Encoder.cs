@@ -13,6 +13,8 @@ namespace spb2xml
         private XmlDocument doc;
         private ModelBank models;
         private Dictionary<string, DefinitionElement> metadata;
+        private int[] headers; // Add a field to store header values
+        private List<int> unknownFlags; // Add a field to store unknown flag values
 
         public Encoder(string xmlFileUrl, string metadataFileUrl)
         {
@@ -41,21 +43,42 @@ namespace spb2xml
         private void LoadMetadata(string metadataFileUrl)
         {
             metadata = new Dictionary<string, DefinitionElement>(StringComparer.OrdinalIgnoreCase);
+            headers = new int[12]; // Initialize the headers array
+            unknownFlags = new List<int>(); // Initialize the unknown flags list
             using (FileStream fs = new FileStream(metadataFileUrl, FileMode.Open))
             using (StreamReader reader = new StreamReader(fs))
             {
                 string line;
                 while ((line = reader.ReadLine()) != null)
                 {
-                    var parts = line.Split(':');
-                    if (parts.Length == 2)
+                    if (line.StartsWith("Headers:"))
                     {
-                        Guid guid = Guid.Parse(parts[0]);
-                        DefinitionElement element = bank.LookupElement(guid);
-                        if (element != null)
+                        var headerValues = line.Substring(8).Split(',');
+                        for (int i = 0; i < headerValues.Length; i++)
                         {
-                            string entryName = element.Name;
-                            metadata[entryName] = element;
+                            headers[i] = int.Parse(headerValues[i]);
+                        }
+                    }
+                    else if (line.StartsWith("UnknownFlags:"))
+                    {
+                        var flagValues = line.Substring(13).Split(',');
+                        for (int i = 0; i < flagValues.Length; i++)
+                        {
+                            unknownFlags.Add(int.Parse(flagValues[i]));
+                        }
+                    }
+                    else
+                    {
+                        var parts = line.Split(':');
+                        if (parts.Length == 2)
+                        {
+                            Guid guid = Guid.Parse(parts[0]);
+                            DefinitionElement element = bank.LookupElement(guid);
+                            if (element != null)
+                            {
+                                string entryName = element.Name;
+                                metadata[entryName] = element;
+                            }
                         }
                     }
                 }
@@ -67,16 +90,17 @@ namespace spb2xml
             writer.Write((ushort)0xEBAC); // File signature
             for (int i = 0; i < 12; i++)
             {
-                writer.Write(0); // Placeholder for headers
+                writer.Write(headers[i]); // Write the stored header values
             }
         }
 
         private void WriteTagData()
         {
+            int flagIndex = 0;
             foreach (var entry in metadata)
             {
                 writer.Write(entry.Value.ID.ToByteArray());
-                writer.Write(0); // Placeholder for unknown flag
+                writer.Write(unknownFlags[flagIndex++]); // Write the stored unknown flag values
             }
         }
 
