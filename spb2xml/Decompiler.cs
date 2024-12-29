@@ -308,6 +308,7 @@ namespace spb2xml
                     pd.SymbolContext != current)
                     propName = pd.SymbolContext.Name + "." + propName;
 
+
                 XmlNode pNode = doc.CreateElement("", propName.TrimEnd(), "");
                 XmlNode tNode = doc.CreateTextNode(text);
                 pNode.AppendChild(tNode);
@@ -320,9 +321,19 @@ namespace spb2xml
             using (FileStream fs = new FileStream(metadataFileUrl, FileMode.Create))
             using (StreamWriter writer = new StreamWriter(fs))
             {
-                foreach (var entry in metadata)
+                foreach (KeyValuePair<Guid, DefinitionElement> entry in metadata)
                 {
-                    writer.WriteLine($"{entry.Key}:{entry.Value.Name}");
+                    string metadataEntry = entry.Value.Name;
+                    //if (entry.Value.SymbolContext != null)
+                    //{
+                    //    metadataEntry = $"{entry.Value.SymbolContext.Name}.{entry.Value.Name}";
+                    //}
+
+                    //if (entry.Value is SetDef setDef && setDef.Parent != null)
+                    //{
+                    //    metadataEntry = $"{setDef.Parent.Name}.{setDef.Name}";
+                    //}
+                    writer.WriteLine($"{entry.Key}:{metadataEntry}");
                 }
             }
         }

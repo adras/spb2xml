@@ -40,7 +40,7 @@ namespace spb2xml
 
         private void LoadMetadata(string metadataFileUrl)
         {
-            metadata = new Dictionary<string, DefinitionElement>();
+            metadata = new Dictionary<string, DefinitionElement>(StringComparer.OrdinalIgnoreCase);
             using (FileStream fs = new FileStream(metadataFileUrl, FileMode.Open))
             using (StreamReader reader = new StreamReader(fs))
             {
@@ -54,7 +54,21 @@ namespace spb2xml
                         DefinitionElement element = bank.LookupElement(guid);
                         if (element != null)
                         {
-                            metadata[element.Name] = element;
+                            string entryName = element.Name;
+                            //if (element is SetDef setDef && setDef.Parent != null)
+                            //{
+                            //    entryName = $"{setDef.Parent.Name}.{setDef.Name}";
+                            //}
+                            ////if (element is PropertyDef propDef && propDef.SymbolContext != null)
+                            ////{
+                            ////    entryName = $"{propDef.SymbolContext.Name}.{propDef.Name}";
+                            ////}
+                            //if (element.SymbolContext != null)
+                            //{
+                            //    entryName = $"{element.SymbolContext.Name}.{element.Name}";
+                            //}
+
+                            metadata[entryName] = element;
                         }
                     }
                 }
@@ -92,7 +106,12 @@ namespace spb2xml
 
         private void WriteElement(XmlElement element)
         {
-            if (metadata.TryGetValue(element.Name, out DefinitionElement defElement))
+            string localName = element.LocalName;
+            if (localName.Contains("."))
+            {
+                localName = localName.Split('.')[1];
+            }
+            if (metadata.TryGetValue(localName, out DefinitionElement defElement))
             {
                 if (defElement is SetDef)
                 {
@@ -105,7 +124,8 @@ namespace spb2xml
             }
             else
             {
-                throw new SPBException("Unknown element: " + element.Name);
+                Console.WriteLine($"Unknown element: {localName}");
+                throw new SPBException("Unknown element: " + localName);
             }
         }
 
