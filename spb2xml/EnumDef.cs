@@ -8,7 +8,7 @@ namespace spb2xml
     [Serializable]
     public class EnumDef
     {
-        private List<String> values = new List<string>();
+        public readonly List<String> values = new List<string>();
        
         public EnumDef(XmlNode node)
         {

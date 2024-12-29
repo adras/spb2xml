@@ -24,6 +24,11 @@ namespace spb2xml
 
         static void Main(string[] args)
         {
+            _ = SetupPropertyCache(@".\", false);
+            Encoder encoder = new Encoder("Tour.xml", "Tour.xml.meta");
+            encoder.Encode("test");
+
+
             string simPropSearchPath = null;
             string file = null;
             string outFileName = null;
@@ -80,60 +85,7 @@ namespace spb2xml
             // init simprop data
             //
 
-            var cacheFn = "propdefs.cache";
-            var exeDir = AppDomain.CurrentDomain.BaseDirectory;
-            var cachePath = Path.Combine(exeDir, cacheFn);
-
-            if (File.Exists(cachePath))
-            {
-                Console.WriteLine("Search property definition files from cache");
-                using (var f = File.OpenRead(cachePath))
-                {
-                    var sb = (SymbolBank)new BinaryFormatter().Deserialize(f);
-                    SymbolBank.Instance = sb;
-                }
-            }
-            else
-            {
-                if (simPropSearchPath is null)
-                {
-#if DEBUG
-                    simPropSearchPath = @"g:\MSFS Base\Packages\fs-base-propdefs\Propdefs\1.0\";
-#else
-                    Console.WriteLine("Error: MSFS not found, you should specify simprop search path with -s");
-                    return;
-#endif
-                }
-
-                Console.WriteLine("Search property definition files in {0}", simPropSearchPath);
-
-                //
-                // parse all propdefs
-                //
-                SymbolBank sb = SymbolBank.Instance;
-                DirectoryInfo cdi = new DirectoryInfo(simPropSearchPath);
-                foreach (FileInfo fi in cdi.GetFiles("*.xml", SearchOption.AllDirectories))
-                {
-                    if (verbose)
-                    {
-                        Console.WriteLine("Add property definition file {0}", fi.Name);
-                    }
-                    try
-                    {
-                        sb.AddSymbolDefinitionFile(fi.FullName);
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine("Warning: Cannot parse property definition file {0}", fi.FullName);
-                        if (verbose) Console.WriteLine("\t {0}", ex.Message);
-                    }
-                }
-
-                using (var f = File.Create(cachePath))
-                {
-                    new BinaryFormatter().Serialize(f, SymbolBank.Instance);
-                }
-            }
+            simPropSearchPath = SetupPropertyCache(simPropSearchPath, verbose);
 
             Console.WriteLine();
 
@@ -176,7 +128,7 @@ namespace spb2xml
             {
                 Decompile(file, outFileName);
             }
-            
+
 
             void Decompile(string f, string outFN)
             {
@@ -197,7 +149,7 @@ namespace spb2xml
                     {
                         Decompiler dec = new Decompiler(f);
                         if (mb != null) dec.SetModels(mb);
-                        dec.Decompile(output);
+                        dec.Decompile(output, $"{outFN}.meta");
                     }
 
                     if (outFN != null)
@@ -214,6 +166,66 @@ namespace spb2xml
                     }
                 }
             }
+        }
+
+        private static string SetupPropertyCache(string simPropSearchPath, bool verbose)
+        {
+            var cacheFn = "propdefs.cache";
+            var exeDir = AppDomain.CurrentDomain.BaseDirectory;
+            var cachePath = Path.Combine(exeDir, cacheFn);
+
+            if (File.Exists(cachePath))
+            {
+                Console.WriteLine("Search property definition files from cache");
+                using (var f = File.OpenRead(cachePath))
+                {
+                    var sb = (SymbolBank)new BinaryFormatter().Deserialize(f);
+                    SymbolBank.Instance = sb;
+                }
+            }
+            else
+            {
+                if (simPropSearchPath is null)
+                {
+#if DEBUG
+                    simPropSearchPath = @"d:\XboxGames\Microsoft Flight Simulator 2024\Content\Propdefs\1.0\";
+#else
+                    Console.WriteLine("Error: MSFS not found, you should specify simprop search path with -s");
+                    return;
+#endif
+                }
+
+                Console.WriteLine("Search property definition files in {0}", simPropSearchPath);
+
+                //
+                // parse all propdefs
+                //
+                SymbolBank sb = SymbolBank.Instance;
+                DirectoryInfo cdi = new DirectoryInfo(simPropSearchPath);
+                foreach (FileInfo fi in cdi.GetFiles("*.xml", SearchOption.AllDirectories))
+                {
+                    if (verbose)
+                    {
+                        Console.WriteLine("Add property definition file {0}", fi.Name);
+                    }
+                    try
+                    {
+                        sb.AddSymbolDefinitionFile(fi.FullName);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine("Warning: Cannot parse property definition file {0}", fi.FullName);
+                        if (verbose) Console.WriteLine("\t {0}", ex.Message);
+                    }
+                }
+
+                using (var f = File.Create(cachePath))
+                {
+                    new BinaryFormatter().Serialize(f, SymbolBank.Instance);
+                }
+            }
+
+            return simPropSearchPath;
         }
     }
 }

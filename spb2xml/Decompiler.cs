@@ -6,19 +6,6 @@ using System.Xml;
 
 namespace spb2xml
 {
-
-    /// <summary>
-    /// optionnal models defini. Accepts an optional
-    /// models definition file (mapping guid to model friendly names,
-    /// useful for missions or LW conf files).
-    /// 
-    /// Note that xml propdefs definition files are read by an independant 
-    /// static class, SymbolBank
-    /// 
-    /// Once the decompiler has been created, passing the .SPB file t
-    /// o the constructor, it can be decompiled to XML with any of the
-    /// Decompile method.
-    /// </summary>
     class Decompiler
     {
         private SymbolBank bank;
@@ -27,68 +14,55 @@ namespace spb2xml
         private int ntags;
         private XmlDocument doc;
         private ModelBank models;
+        private Dictionary<Guid, DefinitionElement> metadata;
 
         private static UTF8Encoding encoder = new UTF8Encoding();
-        private const string DEC_FORMAT = "0.000"; 
+        private const string DEC_FORMAT = "0.000";
 
         public Decompiler(string spbFileUrl)
         {
             bank = SymbolBank.Instance;
             FileStream fs = new FileStream(spbFileUrl, FileMode.Open);
             reader = new BinaryReader(fs);
+            metadata = new Dictionary<Guid, DefinitionElement>();
         }
-    
+
         public void SetModels(ModelBank mBank)
         {
             models = mBank;
         }
 
-        public void Decompile(string fileUrl) 
+        public void Decompile(Stream outStream, string metadataFileUrl)
         {
-            Decompile(new FileStream(fileUrl, FileMode.Create));
-        }
-
-        /// <summary>
-        /// Throws SPBException on any error specific to the SPB file format
-        /// </summary>
-        /// <param name="outStream"></param>
-        public void Decompile(Stream outStream)
-        {
-            // read headers
             ReadHeaders();
             ReadTagData();
 
             doc = new XmlDocument();
-            XmlDeclaration xmlDeclNode = (XmlDeclaration) doc.CreateNode(XmlNodeType.XmlDeclaration, "", "");
+            XmlDeclaration xmlDeclNode = (XmlDeclaration)doc.CreateNode(XmlNodeType.XmlDeclaration, "", "");
             doc.AppendChild(xmlDeclNode);
             ParseElement(null, doc);
 
-            // write
             XmlTextWriter writer = new XmlTextWriter(outStream, Encoding.Default);
             writer.Formatting = Formatting.Indented;
             doc.Save(writer);
+
+            SaveMetadata(metadataFileUrl);
         }
 
-        /// <summary>
-        /// Read basic headers (U16 signature and 10 U32 headers (unknown meaning))
-        /// </summary>
         private void ReadHeaders()
         {
-            // first byte
             ushort fType = reader.ReadUInt16();
             if (fType != 0xEBAC)
             {
                 throw new SPBException("Invalid file ID");
             }
             ntags = 0;
-            // read headers (unknown)
             for (int i = 0; i < 12; i++)
             {
                 int v = reader.ReadInt32();
                 if (i == 6) ntags = v;
             }
 
-            // allocate tags
             tags = new DefinitionElement[ntags];
         }
 
@@ -106,7 +80,8 @@ namespace spb2xml
                 }
 
                 tags[i] = de;
-                reader.ReadInt32();     // unknwon flag
+                metadata[g] = de; // Preserve metadata
+                reader.ReadInt32();
             }
         }
 
@@ -114,7 +89,7 @@ namespace spb2xml
         {
             int tagNumber = reader.ReadInt32() - 1;
 
-            if (tagNumber == -1) return;        // shit happens
+            if (tagNumber == -1) return;
 
             if (tagNumber < 0 || tagNumber > ntags)
             {
@@ -136,7 +111,6 @@ namespace spb2xml
             {
                 throw new SPBException("Unexpected tag type : " + tagType.GetType().Name);
             }
-            
         }
 
         private void ParseSet(SymbolDef current, SetDef set, XmlNode node)
@@ -146,30 +120,29 @@ namespace spb2xml
 
             XmlNode setNode;
 
-            // compare SetDefs
             if (current == null || set.Parent != current)
             {
-                // switch symbols
                 setNode = doc.CreateElement("", set.Parent.Name + "." + set.Name, "");
                 current = set.Parent;
-            } else {
+            }
+            else
+            {
                 setNode = doc.CreateElement("", set.Name, "");
             }
-
 
             node.AppendChild(setNode);
             while (reader.BaseStream.Position < endPosition)
             {
                 ParseElement(current, setNode);
             }
-
         }
 
         private void ParseProperty(SymbolDef current, PropertyDef prop, XmlNode node)
         {
             TypeDef type = prop.Type;
-
-            switch (type.Name) {
+            Console.WriteLine(type.Name);
+            switch (type.Name)
+            {
                 case "TEXT":
                 case "MLTEXT":
                     {
@@ -241,9 +214,9 @@ namespace spb2xml
                         float f2 = reader.ReadSingle();
                         float f3 = reader.ReadSingle();
                         float f4 = reader.ReadSingle();
-                        AddProp(current, prop, f1.ToString(DEC_FORMAT) + "," + 
-                            f2.ToString(DEC_FORMAT) + "," + 
-                            f3.ToString(DEC_FORMAT) + "," + 
+                        AddProp(current, prop, f1.ToString(DEC_FORMAT) + "," +
+                            f2.ToString(DEC_FORMAT) + "," +
+                            f3.ToString(DEC_FORMAT) + "," +
                             f4.ToString(DEC_FORMAT), node);
                     }
                     break;
@@ -259,7 +232,7 @@ namespace spb2xml
                         byte b2 = reader.ReadByte();
                         byte b3 = reader.ReadByte();
                         byte b4 = reader.ReadByte();
-                        AddProp(current, prop, b1 + "," + b2 + "," + b3 + "," + b4, node);
+                        AddProp(current, prop, b1 + "," + b2 + "," + b3 + b4, node);
                     }
                     break;
                 case "GUID":
@@ -281,10 +254,9 @@ namespace spb2xml
                 case "PBH":
                 case "PBH32":
                     {
-                        double p = reader.ReadUInt32() / ((double) 65536 * 65536) * 360.0;
+                        double p = reader.ReadUInt32() / ((double)65536 * 65536) * 360.0;
                         double b = reader.ReadUInt32() / ((double)65536 * 65536) * 360.0;
                         double h = reader.ReadUInt32() / ((double)65536 * 65536) * 360.0;
-                        // pad
                         reader.ReadInt32();
                         AddProp(current, prop, p.ToString(DEC_FORMAT) + "," + b.ToString(DEC_FORMAT) + "," + h.ToString(DEC_FORMAT), node);
                     }
@@ -313,13 +285,12 @@ namespace spb2xml
                     break;
                 case "FILETIME":
                     {
-                           // TODO: filetime
+                        // TODO: filetime
                     }
                     break;
                 default:
                     throw new SPBException("Don't know how to format type " + type.Type + " at " + reader.BaseStream.Position);
             }
-
         }
 
         private void AddProp(SymbolDef current, PropertyDef pd, String text, XmlNode node)
@@ -332,15 +303,11 @@ namespace spb2xml
             }
             else
             {
-
-                // fix namespace issue (if property was issued from a different context)
                 String propName = pd.Name;
                 if (pd.SymbolContext != null &&
                     pd.SymbolContext != current)
                     propName = pd.SymbolContext.Name + "." + propName;
 
-                //
-                // create property as enclosed element
                 XmlNode pNode = doc.CreateElement("", propName.TrimEnd(), "");
                 XmlNode tNode = doc.CreateTextNode(text);
                 pNode.AppendChild(tNode);
@@ -348,5 +315,16 @@ namespace spb2xml
             }
         }
 
+        private void SaveMetadata(string metadataFileUrl)
+        {
+            using (FileStream fs = new FileStream(metadataFileUrl, FileMode.Create))
+            using (StreamWriter writer = new StreamWriter(fs))
+            {
+                foreach (var entry in metadata)
+                {
+                    writer.WriteLine($"{entry.Key}:{entry.Value.Name}");
+                }
+            }
+        }
     }
 }
