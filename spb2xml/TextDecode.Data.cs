@@ -5,7 +5,7 @@ using System.Text;
 
 namespace spb2xml
 {
-    static partial class TextDecode
+    public static partial class TextDecode
     {
         static void InitData()
         {

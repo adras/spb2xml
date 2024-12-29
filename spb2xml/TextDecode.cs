@@ -5,7 +5,7 @@ using System.Diagnostics;
 
 namespace spb2xml
 {
-    static partial class TextDecode
+    public static partial class TextDecode
     {
         static readonly byte[][] S = new byte[256][];
         static readonly char[,] K = new char[256, 250];

@@ -1,9 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.31005.135
+# Visual Studio Version 17
+VisualStudioVersion = 17.12.35514.174 d17.12
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "spb2xml", "spb2xml.csproj", "{1954B5C8-3FCF-4123-9CE7-F07213C00BBE}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "spb2xml", "spb2xml\spb2xml.csproj", "{1954B5C8-3FCF-4123-9CE7-F07213C00BBE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BinText", "BinText\BinText.csproj", "{8E0DBF96-3D9B-48C3-BDED-517493A71644}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,10 @@ Global
 		{1954B5C8-3FCF-4123-9CE7-F07213C00BBE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1954B5C8-3FCF-4123-9CE7-F07213C00BBE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1954B5C8-3FCF-4123-9CE7-F07213C00BBE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8E0DBF96-3D9B-48C3-BDED-517493A71644}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8E0DBF96-3D9B-48C3-BDED-517493A71644}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8E0DBF96-3D9B-48C3-BDED-517493A71644}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8E0DBF96-3D9B-48C3-BDED-517493A71644}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
