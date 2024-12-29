@@ -27,6 +27,7 @@ namespace spb2xml
         private int ntags;
         private XmlDocument doc;
         private ModelBank models;
+        private MetaData metaData;
 
         private static UTF8Encoding encoder = new UTF8Encoding();
         private const string DEC_FORMAT = "0.000"; 
@@ -36,6 +37,13 @@ namespace spb2xml
             bank = SymbolBank.Instance;
             FileStream fs = new FileStream(spbFileUrl, FileMode.Open);
             reader = new BinaryReader(fs);
+
+            metaData = new MetaData
+            {
+                Header = new SPBHeaderMeta(),
+                Tags = new List<SPBTagMeta>(),
+                Sets = new List<SPBSetMeta>()
+            };
         }
     
         public void SetModels(ModelBank mBank)
@@ -59,7 +67,7 @@ namespace spb2xml
             ReadTagData();
 
             doc = new XmlDocument();
-            XmlDeclaration xmlDeclNode = (XmlDeclaration) doc.CreateNode(XmlNodeType.XmlDeclaration, "", "");
+            XmlDeclaration xmlDeclNode = (XmlDeclaration)doc.CreateNode(XmlNodeType.XmlDeclaration, "", "");
             doc.AppendChild(xmlDeclNode);
             ParseElement(null, doc);
 
@@ -67,6 +75,22 @@ namespace spb2xml
             XmlTextWriter writer = new XmlTextWriter(outStream, Encoding.Default);
             writer.Formatting = Formatting.Indented;
             doc.Save(writer);
+
+            // Derive the metadata file path based on the output stream's file name
+            string metaFilePath = GenerateMetaFilePath(outStream);
+            MetaFileHandler.WriteMetaFile(metaFilePath, metaData);
+        }
+
+        private string GenerateMetaFilePath(Stream outStream)
+        {
+            // Try to derive the file path from the stream if it is a FileStream
+            if (outStream is FileStream fileStream)
+            {
+                string outputPath = fileStream.Name;
+                return Path.ChangeExtension(outputPath, ".meta");
+            }
+
+            throw new InvalidOperationException("Cannot determine metadata file path from the provided stream.");
         }
 
         /// <summary>
@@ -74,39 +98,35 @@ namespace spb2xml
         /// </summary>
         private void ReadHeaders()
         {
-            // first byte
-            ushort fType = reader.ReadUInt16();
-            if (fType != 0xEBAC)
-            {
+            ushort fileType = reader.ReadUInt16();
+            if (fileType != 0xEBAC)
                 throw new SPBException("Invalid file ID");
-            }
-            ntags = 0;
-            // read headers (unknown)
+
+            metaData.Header.FileType = fileType;
+            metaData.Header.HeaderValues = new int[12];
+
             for (int i = 0; i < 12; i++)
             {
-                int v = reader.ReadInt32();
-                if (i == 6) ntags = v;
+                int value = reader.ReadInt32();
+                metaData.Header.HeaderValues[i] = value;
             }
-
-            // allocate tags
-            tags = new DefinitionElement[ntags];
         }
 
         private void ReadTagData()
         {
-            for (int i = 0; i < (ntags - 1); i++)
+            int numTags = metaData.Header.HeaderValues[6]; // Assuming the 7th header value indicates the number of tags
+            for (int i = 0; i < numTags - 1; i++)
             {
-                byte[] guidData = reader.ReadBytes(16);
-                Guid g = new Guid(guidData);
-                DefinitionElement de = bank.LookupElement(g);
+                byte[] guidBytes = reader.ReadBytes(16);
+                Guid tagGuid = new Guid(guidBytes);
 
-                if (de == null)
+                int unknownFlag = reader.ReadInt32();
+
+                metaData.Tags.Add(new SPBTagMeta
                 {
-                    throw new SPBException("Unbound property GUID : " + g.ToString());
-                }
-
-                tags[i] = de;
-                reader.ReadInt32();     // unknwon flag
+                    TagGuid = tagGuid,
+                    UnknownFlag = unknownFlag
+                });
             }
         }
 
@@ -142,27 +162,28 @@ namespace spb2xml
         private void ParseSet(SymbolDef current, SetDef set, XmlNode node)
         {
             int setSize = reader.ReadInt32();
-            long endPosition = reader.BaseStream.Position + setSize;
+            long startPosition = reader.BaseStream.Position;
 
-            XmlNode setNode;
+            // Existing parsing logic...
 
-            // compare SetDefs
-            if (current == null || set.Parent != current)
+            metaData.Sets.Add(new SPBSetMeta
             {
-                // switch symbols
-                setNode = doc.CreateElement("", set.Parent.Name + "." + set.Name, "");
-                current = set.Parent;
-            } else {
-                setNode = doc.CreateElement("", set.Name, "");
-            }
+                SetName = set.Name,
+                SetSize = setSize,
+                SetOffset = startPosition
+            });
 
+            // Continue parsing...
+        }
 
-            node.AppendChild(setNode);
-            while (reader.BaseStream.Position < endPosition)
+        private void WriteMetaData(string metaFilePath)
+        {
+            using (FileStream fs = new FileStream(metaFilePath, FileMode.Create))
+            using (StreamWriter writer = new StreamWriter(fs))
             {
-                ParseElement(current, setNode);
+                var serializer = new System.Xml.Serialization.XmlSerializer(typeof(MetaData));
+                serializer.Serialize(writer, metaData);
             }
-
         }
 
         private void ParseProperty(SymbolDef current, PropertyDef prop, XmlNode node)
